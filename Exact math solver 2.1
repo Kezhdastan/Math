@@ -1,0 +1,568 @@
+import sympy as sp
+
+# ============================================================
+# EXACT MATH SOLVER 2.1
+# ============================================================
+
+x, y, z = sp.symbols("x y z")
+
+LOCAL = {
+    "x": x,
+    "y": y,
+    "z": z,
+
+    "i": sp.I,
+    "I": sp.I,
+
+    "pi": sp.pi,
+    "π": sp.pi,
+    "e": sp.E,
+
+    "sqrt": sp.sqrt,
+
+    "sin": sp.sin,
+    "cos": sp.cos,
+    "tan": sp.tan,
+    "cot": sp.cot,
+
+    "asin": sp.asin,
+    "acos": sp.acos,
+    "atan": sp.atan,
+
+    "ln": sp.log,
+    "log": sp.log,
+    "exp": sp.exp,
+
+    "factorial": sp.factorial,
+}
+
+
+# ============================================================
+# ПАРСИНГ МАТЕМАТИКИ
+# ============================================================
+
+def parse_math(text):
+    text = text.strip()
+
+    text = text.replace("^", "**")
+    text = text.replace("√", "sqrt")
+    text = text.replace("π", "pi")
+    text = text.replace("tg", "tan")
+    text = text.replace("ctg", "cot")
+
+    return sp.sympify(text, locals=LOCAL)
+
+
+# ============================================================
+# БАЗОВЫЙ КАЛЬКУЛЯТОР
+# ============================================================
+
+def calculator(text):
+    result = parse_math(text)
+    return sp.simplify(result)
+
+
+# ============================================================
+# ФАКТОРИАЛ
+# ============================================================
+
+def factorial_command(text):
+    value = text[len("factorial"):].strip()
+
+    if not value:
+        return "Пример: factorial 5"
+
+    n = parse_math(value)
+
+    return sp.factorial(n)
+
+
+# ============================================================
+# ТРИГОНОМЕТРИЯ
+# ============================================================
+
+def trig_command(text):
+    expression = text[len("trig"):].strip()
+
+    if not expression:
+        return "Пример: trig sin(pi/6)"
+
+    result = parse_math(expression)
+
+    return sp.simplify(result)
+
+
+# ============================================================
+# ПРОИЗВОДНАЯ
+# ============================================================
+
+def derivative_command(text):
+    expression = text[len("diff"):].strip()
+
+    if not expression:
+        return "Пример: diff x^3"
+
+    parts = expression.split(",")
+
+    function = parse_math(parts[0])
+
+    variable = x
+
+    if len(parts) > 1:
+        variable = parse_math(parts[1])
+
+    return sp.simplify(
+        sp.diff(function, variable)
+    )
+
+
+# ============================================================
+# ИНТЕГРАЛ
+# ============================================================
+
+def integral_command(text):
+    expression = text[len("integral"):].strip()
+
+    if not expression:
+        return "Пример: integral x^2"
+
+    parts = expression.split(",")
+
+    function = parse_math(parts[0])
+
+    variable = x
+
+    if len(parts) > 1:
+        variable = parse_math(parts[1])
+
+    result = sp.integrate(
+        function,
+        variable
+    )
+
+    return result
+
+
+# ============================================================
+# ПРЕДЕЛ
+# ============================================================
+
+def limit_command(text):
+    expression = text[len("limit"):].strip()
+
+    parts = expression.split(",")
+
+    if len(parts) != 3:
+        return "Пример: limit sin(x)/x, x, 0"
+
+    function = parse_math(parts[0])
+    variable = parse_math(parts[1])
+    point = parse_math(parts[2])
+
+    return sp.limit(
+        function,
+        variable,
+        point
+    )
+
+
+# ============================================================
+# МАТРИЦЫ
+# ============================================================
+
+def matrix_command(text):
+    expression = text[len("matrix"):].strip()
+
+    if not expression:
+        return "Пример: matrix [[1,2],[3,4]]"
+
+    try:
+        matrix = sp.Matrix(
+            eval(
+                expression,
+                {"__builtins__": {}},
+                {}
+            )
+        )
+
+        print("\nМатрица:")
+        print(matrix)
+
+        print("\nРазмер:")
+        print(f"{matrix.rows} x {matrix.cols}")
+
+        if matrix.rows == matrix.cols:
+
+            print("\nОпределитель:")
+            print(matrix.det())
+
+            if matrix.det() != 0:
+                print("\nОбратная матрица:")
+                print(matrix.inv())
+
+        return ""
+
+    except Exception:
+        return "Ошибка. Пример: matrix [[1,2],[3,4]]"
+
+
+# ============================================================
+# УРАВНЕНИЯ
+# ============================================================
+
+def equation_command(text):
+
+    if "=" not in text:
+        return "Пример: x^2-5*x+6=0"
+
+    left, right = text.split("=", 1)
+
+    left = parse_math(left)
+    right = parse_math(right)
+
+    equation = sp.Eq(left, right)
+
+    solutions = sp.solve(
+        equation,
+        x
+    )
+
+    if not solutions:
+        return "Нет решений."
+
+    result = []
+
+    for solution in solutions:
+        result.append(
+            f"x = {sp.simplify(solution)}"
+        )
+
+    return "\n".join(result)
+
+
+# ============================================================
+# СИСТЕМЫ УРАВНЕНИЙ
+# ============================================================
+
+def system_command():
+
+    print()
+    print("Вводи уравнения.")
+    print("Когда закончишь — напиши done.")
+    print()
+
+    equations = []
+
+    while True:
+
+        text = input("eq >>> ").strip()
+
+        if text.lower() == "done":
+            break
+
+        if "=" not in text:
+            print("Используй знак =")
+            continue
+
+        left, right = text.split("=", 1)
+
+        try:
+
+            equation = sp.Eq(
+                parse_math(left),
+                parse_math(right)
+            )
+
+            equations.append(equation)
+
+        except Exception:
+            print("Не удалось распознать уравнение.")
+
+    if not equations:
+        return "Система пустая."
+
+    solutions = sp.solve(
+        equations,
+        [x, y, z],
+        dict=True
+    )
+
+    if not solutions:
+        return "Решений нет."
+
+    answer = []
+
+    for variable, value in solutions[0].items():
+        answer.append(
+            f"{variable} = {sp.simplify(value)}"
+        )
+
+    return "\n".join(answer)
+
+
+# ============================================================
+# НЕРАВЕНСТВА
+# ============================================================
+
+def inequality_command(text):
+
+    expression = text[len("inequality"):].strip()
+
+    if "<=" in expression:
+
+        left, right = expression.split("<=", 1)
+        result = sp.solve_univariate_inequality(
+            parse_math(left) <= parse_math(right),
+            x
+        )
+
+    elif ">=" in expression:
+
+        left, right = expression.split(">=", 1)
+        result = sp.solve_univariate_inequality(
+            parse_math(left) >= parse_math(right),
+            x
+        )
+
+    elif "<" in expression:
+
+        left, right = expression.split("<", 1)
+        result = sp.solve_univariate_inequality(
+            parse_math(left) < parse_math(right),
+            x
+        )
+
+    elif ">" in expression:
+
+        left, right = expression.split(">", 1)
+        result = sp.solve_univariate_inequality(
+            parse_math(left) > parse_math(right),
+            x
+        )
+
+    else:
+        return "Пример: inequality x^2-4<0"
+
+    return result
+
+
+# ============================================================
+# ТЕОРЕМА ПИФАГОРА
+# ============================================================
+
+def pythagoras_command(text):
+
+    expression = text[len("pythagoras"):].strip()
+
+    try:
+
+        a, b = expression.split(",")
+
+        a = parse_math(a)
+        b = parse_math(b)
+
+        c = sp.sqrt(
+            a**2 + b**2
+        )
+
+        return f"c = {sp.simplify(c)}"
+
+    except Exception:
+
+        return "Пример: pythagoras 3,4"
+
+
+# ============================================================
+# ПОМОЩЬ
+# ============================================================
+
+def help_command():
+
+    print("""
+================================================
+              EXACT MATH SOLVER 2.1
+================================================
+
+БАЗОВЫЙ КАЛЬКУЛЯТОР
+
+  2+2
+  sqrt(50)
+  2^10
+  (3+4)*5
+
+
+ТРИГОНОМЕТРИЯ
+
+  trig sin(pi/6)
+  trig cos(pi/3)
+  trig tan(pi/4)
+
+
+ФАКТОРИАЛ
+
+  factorial 5
+  factorial 10
+
+
+ПРОИЗВОДНАЯ
+
+  diff x^3
+  diff sin(x)
+  diff x^2+5*x
+
+
+ИНТЕГРАЛ
+
+  integral x^2
+  integral sin(x)
+  integral x^2,x
+
+
+ПРЕДЕЛ
+
+  limit sin(x)/x,x,0
+
+
+УРАВНЕНИЯ
+
+  x^2-5*x+6=0
+  x^3-6*x^2+11*x-6=0
+
+
+СИСТЕМЫ
+
+  system
+
+
+НЕРАВЕНСТВА
+
+  inequality x^2-4<0
+  inequality x^2-9>=0
+
+
+МАТРИЦЫ
+
+  matrix [[1,2],[3,4]]
+
+
+ПИФАГОР
+
+  pythagoras 3,4
+
+
+КОМПЛЕКСНЫЕ ЧИСЛА
+
+  sqrt(-1)
+  i^2
+  (2+i)*(3-i)
+
+
+ПОМОЩЬ
+
+  help
+
+
+ВЫХОД
+
+  exit
+
+================================================
+""")
+
+
+# ============================================================
+# ГЛАВНЫЙ ДВИЖОК
+# ============================================================
+
+def solve(text):
+
+    command = text.lower().strip()
+
+    if command == "help":
+        help_command()
+        return ""
+
+    if command == "system":
+        return system_command()
+
+    if command.startswith("factorial"):
+        return factorial_command(text)
+
+    if command.startswith("trig"):
+        return trig_command(text)
+
+    if command.startswith("diff"):
+        return derivative_command(text)
+
+    if command.startswith("integral"):
+        return integral_command(text)
+
+    if command.startswith("limit"):
+        return limit_command(text)
+
+    if command.startswith("matrix"):
+        return matrix_command(text)
+
+    if command.startswith("inequality"):
+        return inequality_command(text)
+
+    if command.startswith("pythagoras"):
+        return pythagoras_command(text)
+
+    # Если есть "=" — решаем как уравнение
+    if "=" in text:
+        return equation_command(text)
+
+    # Иначе обычный калькулятор
+    return calculator(text)
+
+
+# ============================================================
+# ЗАПУСК
+# ============================================================
+
+def main():
+
+    print("""
+╔══════════════════════════════════════════╗
+║          EXACT MATH SOLVER 2.1          ║
+║             Python + SymPy              ║
+╚══════════════════════════════════════════╝
+
+Напиши help, чтобы увидеть команды.
+""")
+
+    while True:
+
+        text = input(">>> ").strip()
+
+        if text.lower() in (
+            "exit",
+            "quit",
+            "выход"
+        ):
+            print("Пока 👋")
+            break
+
+        if not text:
+            continue
+
+        try:
+
+            result = solve(text)
+
+            if result != "":
+                print(result)
+
+        except Exception as error:
+
+            print("❌ Ошибка:")
+            print(error)
+
+
+# ============================================================
+# СТАРТ ПРОГРАММЫ
+# ============================================================
+
+if __name__ == "__main__":
+    main()
